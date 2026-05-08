@@ -1,0 +1,7 @@
+*.pyc
+*pycache*
+saved_info/*
+saved_info
+Dockerfile/
+evaluation.md/
+output/

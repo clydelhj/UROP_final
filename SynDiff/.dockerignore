@@ -1,0 +1,12 @@
+.git
+.gitignore
+.DS_Store
+**/.DS_Store
+figures/
+SynDiff_sample_data/
+output/
+*.tar
+*.zip
+__pycache__/
+**/__pycache__/
+*.pyc
