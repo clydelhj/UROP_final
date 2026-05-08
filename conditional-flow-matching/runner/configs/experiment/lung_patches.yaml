@@ -1,0 +1,33 @@
+# @package _global_
+
+defaults:
+  - override /model: image_cfm.yaml
+  - override /callbacks: no_stopping_no_rich
+  - override /datamodule: lung_patches.yaml
+  - override /trainer: ddp.yaml
+
+name: "lung_patches_cfm"
+seed: 42
+
+datamodule:
+  batch_size: 4
+
+model:
+  _target_: src.models.cfm_module.VirtualStainingCFMLitModule
+  sigma_min: 1e-4
+  ot_sampler: "exact"
+  net:
+    num_channels: 128
+
+callbacks:
+  model_checkpoint:
+    every_n_train_steps: 5000
+    every_n_epochs: null
+    save_top_k: -1  # keep all checkpoints
+    save_last: True
+    filename: "epoch_{epoch:04d}_step_{step}"
+
+trainer:
+  max_epochs: 3
+  check_val_every_n_epoch: 1
+  default_root_dir: /localdata/hleebg/final_project/CFM/runner/logs

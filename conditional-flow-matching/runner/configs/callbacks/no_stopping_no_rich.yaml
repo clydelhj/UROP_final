@@ -1,0 +1,15 @@
+defaults:
+  - model_checkpoint.yaml
+  - model_summary.yaml
+  - _self_
+
+model_checkpoint:
+  dirpath: ${paths.output_dir}/checkpoints
+  filename: "epoch_{epoch:04d}_step_{step}"
+  save_last: True
+  save_top_k: -1
+  every_n_epochs: 1
+  auto_insert_metric_name: False
+
+model_summary:
+  max_depth: 3

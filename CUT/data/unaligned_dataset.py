@@ -1,14 +1,34 @@
 import os.path
 from data.base_dataset import BaseDataset, get_transform
-from data.image_folder import make_dataset, load_h5_image
+from data.image_folder import make_dataset
 from PIL import Image
 import random
+import numpy as np
+import h5py
 import util.util as util
 
 
-def _load_image(path):
-    if path.endswith('.h5') or path.endswith('.hdf5'):
-        return load_h5_image(path, key='patches')
+def _expand_paths(file_paths):
+    """Return list of (path, patch_idx_or_None) for all items."""
+    result = []
+    for path in file_paths:
+        if path.endswith('.h5') or path.endswith('.hdf5'):
+            with h5py.File(path, 'r') as f:
+                n = len(f['patches'])
+            for i in range(n):
+                result.append((path, i))
+        else:
+            result.append((path, None))
+    return result
+
+
+def _load_image(path, patch_idx=None):
+    if patch_idx is not None:
+        with h5py.File(path, 'r') as f:
+            arr = np.array(f['patches'][patch_idx])
+        if arr.dtype != np.uint8:
+            arr = np.clip(arr * 255, 0, 255).astype(np.uint8)
+        return Image.fromarray(arr).convert('RGB')
     return Image.open(path).convert('RGB')
 
 
@@ -38,10 +58,10 @@ class UnalignedDataset(BaseDataset):
             self.dir_A = os.path.join(opt.dataroot, "val_A")
             self.dir_B = os.path.join(opt.dataroot, "val_B")
 
-        self.A_paths = sorted(make_dataset(self.dir_A, opt.max_dataset_size))   # load images from '/path/to/data/trainA'
-        self.B_paths = sorted(make_dataset(self.dir_B, opt.max_dataset_size))    # load images from '/path/to/data/trainB'
-        self.A_size = len(self.A_paths)  # get the size of dataset A
-        self.B_size = len(self.B_paths)  # get the size of dataset B
+        self.A_paths = _expand_paths(sorted(make_dataset(self.dir_A, opt.max_dataset_size)))
+        self.B_paths = _expand_paths(sorted(make_dataset(self.dir_B, opt.max_dataset_size)))
+        self.A_size = len(self.A_paths)
+        self.B_size = len(self.B_paths)
 
     def __getitem__(self, index):
         """Return a data point and its metadata information.
@@ -55,14 +75,14 @@ class UnalignedDataset(BaseDataset):
             A_paths (str)    -- image paths
             B_paths (str)    -- image paths
         """
-        A_path = self.A_paths[index % self.A_size]  # make sure index is within then range
-        if self.opt.serial_batches:   # make sure index is within then range
+        A_path, A_pidx = self.A_paths[index % self.A_size]
+        if self.opt.serial_batches:
             index_B = index % self.B_size
-        else:   # randomize the index for domain B to avoid fixed pairs.
+        else:
             index_B = random.randint(0, self.B_size - 1)
-        B_path = self.B_paths[index_B]
-        A_img = _load_image(A_path)
-        B_img = _load_image(B_path)
+        B_path, B_pidx = self.B_paths[index_B]
+        A_img = _load_image(A_path, A_pidx)
+        B_img = _load_image(B_path, B_pidx)
 
         # Apply image transformation
         # For CUT/FastCUT mode, if in finetuning phase (learning rate is decaying),
